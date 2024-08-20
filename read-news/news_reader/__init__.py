@@ -1,8 +1,14 @@
+from datetime import datetime
 from robocorp import browser
-import time
+
+import logging
 import random
 import re
-from datetime import datetime
+import time
+import uuid
+
+
+logger = logging.getLogger("news_reader")
 
 
 # Money has 2 main formats
@@ -44,11 +50,18 @@ class NewsReader:
     available_sections = []
     locators = {}
 
-    def random_delay(self):
-        """Sleep a random amount of seconds (1 to 5) to act as user and not block the website"""
-        time.sleep(random.randint(1, 5))
+    def pre_work(self):
+        """Do anything website-specific before actually start working on it, eg: cookie settings, banners..."""
+        pass
 
-    def get_element(self, locator_name, format_values={}, element=browser.page()):
+    def random_delay(self, fixed=None):
+        """Sleep a random amount of seconds (1 to 5) to act as user and not block the website, or `fixed` if wanted to"""
+        if fixed:
+            time.sleep(fixed)
+        else:
+            time.sleep(random.randint(1, 5))
+
+    def get_element(self, locator_name, format_values={}, root=browser.page()):
         """
         Return an element of the current page based of `locator_name`.
         If `format_values` is not empty, it means the final locator
@@ -57,7 +70,19 @@ class NewsReader:
         locator = self.locators[locator_name] if locator_name in self.locators else locator_name
         if len(format_values):
             locator = locator.format(**format_values)
-        return element.locator(locator)
+        return root.locator(locator)
+
+    def get_min_year_and_month(self, months_ago):
+        """
+        Return minimul year and month that the news date should be to be selected
+        """
+        today = datetime.now()
+        min_year = today.year
+        min_month = today.month
+        if months_ago > 0:
+            min_year -= months_ago // 12
+            min_month -= months_ago % 12
+        return min_year, min_month
 
     def get_search_bar(self):
         """Retrieve search input bar element"""
@@ -104,6 +129,10 @@ class NewsReader:
         # Visit website
         browser.goto(self.url)
 
+        # Pre-work
+        self.random_delay()
+        self.pre_work()
+
         # Find search bar and submit button
         search_bar = self.get_search_bar()
         submit_button = self.get_search_submit_button()
@@ -125,7 +154,7 @@ class NewsReader:
 
         # Collect all news up to `months_ago`
         news = self.collect_news(months_ago)
-        
+
         # Set count of search phrase
         for n in news:
             n.set_count_of_search_phrase(search_phrase)
@@ -138,6 +167,7 @@ class News:
     Generic news
     """
 
+    id = None
     title = None
     date = None
     description = None
@@ -145,6 +175,7 @@ class News:
     count_of_search_phrase = 0
 
     def __init__(self, title=None, date=None, description=None, picture_url=None):
+        self.id = uuid.uuid4()
         self.title = title
         self.date = date
         self.description = description
@@ -155,19 +186,24 @@ class News:
         content = self.title or ""
         content += self.description or ""
         return content
-    
+
     @property
     def mentions_money(self):
         """
         True or False, depending on whether the title or description contains any amount of money
-        
         Possible formats: $11.1 | $111,111.11 | 11 dollars | 11 USD
         """
+        logger.debug(f"({self.id}) Check if there is any mention of money")
 
         if len(self.content) == 0:
-            return False
+            return "False"
 
-        return MONEY_REGEX.match(content) is not None
+        if MONEY_REGEX.match(self.content) is not None:
+            return "True"
+
+        return "False"
 
     def set_count_of_search_phrase(self, search_phrase):
-        self.count_of_search_phrase = len(re.findall(search_phrase, self.content))
+        search_phrase_regex = fr".*{search_phrase}.*"
+        self.count_of_search_phrase = len(re.findall(search_phrase_regex, self.content, re.IGNORECASE))
+        logger.debug(f"({self.id}) Number of times `{search_phrase}` shows up in title + description: {self.count_of_search_phrase}")

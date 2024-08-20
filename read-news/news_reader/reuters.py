@@ -6,6 +6,8 @@ from news_reader import NewsReader, News
 logger = logging.getLogger("reuters")
 
 
+# TODO: reuters website has strong bot detection, making our lives hard :)
+#       Investigate using undetected chromium for it: https://github.com/ultrafunkamsterdam/undetected-chromedriver/issues/1608
 class Reuters(NewsReader):
     url = "https://www.reuters.com"
     available_sections = [
@@ -85,7 +87,6 @@ class Reuters(NewsReader):
 
     def collect_news(self, months_ago):
         # TODO: follow pagination
-        
         # Determine the oldest year/month for the news
         today = datetime.now()
         min_year = today.year
