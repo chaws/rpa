@@ -7,6 +7,10 @@ import requests
 
 
 def download_file(url, local_filename):
+    """
+    Download file by chunks
+    """
+
     _8kb = 8192
     with requests.get(url, stream=True) as r:
         r.raise_for_status()
@@ -54,6 +58,7 @@ def read_news():
     )
 
     # Define some default parameters for local testing
+    # TODO: user-defined payloads is not working
     search = "ai"
     section = "health"
     months_ago = 1
