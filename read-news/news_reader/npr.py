@@ -15,6 +15,7 @@ class Npr(NewsReader):
     # These are all necessary CSS locators for Reuters
     locators = {
         "close_cookie_settings_button": "div#onetrust-close-btn-container",
+        "close_cookie_settings_button_us": "button#onetrust-accept-btn-handler",
         "search_bar_button": "a#navigation_dropdown-search",
         "search_bar_input": "div.non-hidden-search input[type=search]",
         "search_submit_button": "div.non-hidden-search button[type=submit]",
@@ -25,8 +26,24 @@ class Npr(NewsReader):
     }
 
     def pre_work(self):
+        """
+        The website may ask for cookie preferences, and the way it asks might be different depending
+        on the country where request was originated.
+
+        The code is being developed in Brazil but it is being tested by Robocorp servers, which are
+        probably living somewhere in the US.
+
+        TODO: check other countries if cookie settings might differ
+        """
         logger.debug("Closing cookie settings")
+
+        # Works fine in Brazil, but not in US
         button = self.get_element("close_cookie_settings_button")
+        if button.is_visible():
+            button.click()
+
+        # Works in US
+        button = self.get_element("close_cookie_settings_button_us")
         if button.is_visible():
             button.click()
 
